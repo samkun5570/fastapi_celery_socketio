@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Status Tracker</title>
-    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.js"></script>
 </head>
 <body>
     <h1>Task Status Tracker</h1>
@@ -12,7 +12,13 @@
     <p id="status">Task Status: Not started</p>
 
     <script>
-        const socket = io("/socket.io");
+        var connectionOptions = {
+            "force new connection": true,
+            reconnectionAttempts: "Infinity",
+            timeout: 10000,
+            transports: ["websocket"],
+          };
+        const socket = io('',connectionOptions);
         
         document.addEventListener("DOMContentLoaded", () => {
         const storedTaskId = localStorage.getItem("task_id");

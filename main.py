@@ -7,20 +7,14 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import uvicorn
+import ws
 
 # from task import long_running_task
 from celery_app import app as cel_app,long_running_task
 
 logging.basicConfig(level=logging.DEBUG)
 
-# Initialize Socket.IO server
-# sio = socketio.AsyncServer(async_mode='asgi')
-sio=socketio.AsyncServer(cors_allowed_origins=[],async_mode='asgi') # keep cors_allowed_origins=[] if cors has to be controlled by the application framework
-
 app = FastAPI()
-
-# app.add_middleware(BaseHTTPMiddleware, dispatch=ASGIApp(sio))
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,18 +24,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 templates = Jinja2Templates(directory="templates")
-general_pages_router = APIRouter()
-# Attach the Socket.IO server to FastAPI
-sio_app = socketio.ASGIApp(sio)
-app.mount('/socket.io', sio_app)
+# general_pages_router = APIRouter()
 
-@general_pages_router.get("/")
+# app.add_middleware(BaseHTTPMiddleware, dispatch=ASGIApp(sio))
+# Initialize Socket.IO server
+sio = socketio.AsyncServer(async_mode='asgi')
+# sio=socketio.AsyncServer(cors_allowed_origins=[],async_mode='asgi') # keep cors_allowed_origins=[] if cors has to be controlled by the application framework
+# Attach the Socket.IO server to FastAPI
+sio_app = socketio.ASGIApp(sio,socketio_path='socket.io')
+app.mount('/socket.io', app=sio_app)
+
+# sio = socketio.AsyncServer(async_mode='asgi')
+# sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/socket.io")
+# sio.register_namespace(ws.ConnectNS('/'))
+
+# @general_pages_router.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
 	return templates.TemplateResponse("general_pages/homepage.html",{"request":request})
 
-app.include_router(general_pages_router)
+# app.include_router(general_pages_router)
 sid_task_map = {}
 
 @app.get("/tasks/{task_id}")
@@ -93,24 +96,24 @@ async def disconnect(sid):
 
 @sio.on("track_task")
 async def track_task(sid, task_id):
-    task_result = AsyncResult(task_id)
+    task_result = cel_app.AsyncResult(task_id)
 
     while not task_result.ready():
         # Retrieve task state and send updates
         state = task_result.state
         info = task_result.info or {}
-        print("task_status", {"state": state, "info": info}, room=sid)
+        print("task_status", {"state": state, "info": info}, 'room=',sid)
         await sio.emit("task_status", {"state": state, "info": info}, room=sid)
         await sio.sleep(1)  # Check status every second
 
     # Send the final result
     final_result = task_result.result
-    print("task_status", {"state": "COMPLETED", "result": final_result}, room=sid)
+    print("task_status", {"state": "COMPLETED", "result": final_result},'sid : ',sid)
     await sio.emit("task_status", {"state": "COMPLETED", "result": final_result}, room=sid)
 
 # if __name__ == '__main__':
 #     uvicorn.run('main:app',
-#         host='127.0.0.1',  # Replace with the desired IP address or '0.0.0.0' for all interfaces
-#         port=8000,  # Replace with the desired port number
+#         host='127.0.0.1',  
+#         port=8000,  
 #         reload=True
 #         )

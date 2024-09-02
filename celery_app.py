@@ -1,17 +1,23 @@
 from celery import Celery
 import time
+import os
+from dotenv import load_dotenv
+from pathlib import Path
+
+env_path = Path('.') / '.env'
+load_dotenv(dotenv_path=env_path)
 
 app = Celery(
     'celery_app',
-    broker_url='redis://127.0.0.1:6379',  # Change this if you're using RabbitMQ or another broker
-    result_backend='redis://127.0.0.1:6379',  # Using Redis as the result backend,
-    result_expires=3600,
+    broker_url=os.getenv("BROKER_URL"),  
+    result_backend=os.getenv("RESULT_BACKEND"),  
+    result_expires=os.getenv("RESULT_EXPIRES"),
 )
 
-app.conf.update(
-    result_backend='redis://127.0.0.1:6379',
-    result_expires=36000,
-)
+# app.conf.update(
+#     result_backend='redis://127.0.0.1:6379',
+#     result_expires=36000,
+# )
 
 
 # @app.task(bind=True)
