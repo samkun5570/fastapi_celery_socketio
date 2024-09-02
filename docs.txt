@@ -1,0 +1,2 @@
+if docker fails to start for -> Failed to load docker configuration: invalid character '\x00' looking for beginning of value the solution for  the issue was in corrupted C:\Users\username\.docker\features.json file
+The file was staffed with some null values. I rewrited it with content “{}”, saved and everything worked out
